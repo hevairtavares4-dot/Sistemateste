@@ -47,7 +47,7 @@
   header.top h1 { font-size: clamp(1.6rem, 5vw, 2.1rem); margin: 0 0 6px; letter-spacing: -0.01em; }
   header.top p { color: var(--text-dim); margin: 0; font-size: 0.95rem; }
 
-  .card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 22px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 22px; transition: box-shadow 0.15s ease; }
 
   label { display:block; font-size: 0.85rem; color: var(--text-dim); margin-bottom: 6px; }
   input[type=text] {
@@ -60,7 +60,7 @@
   button {
     font-family: var(--font-display); font-weight: 600; font-size: 1rem;
     border-radius: 10px; border: 1px solid transparent; padding: 12px 18px;
-    cursor: pointer; transition: transform 0.05s ease;
+    cursor: pointer; transition: transform 0.05s ease, filter 0.15s ease;
   }
   button:active { transform: scale(0.98); }
   button:disabled { opacity: 0.45; cursor: not-allowed; }
@@ -68,25 +68,45 @@
   .btn-secondary { background: var(--panel-2); color: var(--text); border-color: var(--line); }
   .btn-block { width: 100%; }
 
+  .diff-row { display: flex; gap: 8px; }
+  .diff-row button { flex: 1; padding: 10px; font-size: 0.85rem; background: var(--panel-2); color: var(--text-dim); border-color: var(--line); }
+  .diff-row button.active { background: var(--p1); color: #1a0e00; border-color: var(--p1); }
+
   .hidden { display: none !important; }
 
   .duel { display: grid; grid-template-columns: 1fr auto 1fr; gap: 12px; align-items: center; }
-  .fighter { text-align: center; }
+  .fighter { text-align: center; transition: transform 0.15s ease; }
   .fighter .tag { font-size: 0.78rem; color: var(--text-dim); margin-bottom: 4px; }
   .fighter .name { font-weight: 600; font-size: 1.05rem; margin-bottom: 8px; }
   .fighter.me .name { color: var(--p1); }
   .fighter.opp .name { color: var(--p2); }
   .hp { display: flex; gap: 5px; justify-content: center; }
-  .hp .pip { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--line); }
+  .hp .pip { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--line); transition: background 0.15s ease, border-color 0.15s ease; }
   .fighter.me .hp .pip.full { background: var(--p1); border-color: var(--p1); }
   .fighter.opp .hp .pip.full { background: var(--p2); border-color: var(--p2); }
   .vs { font-family: var(--font-mono); color: var(--text-dim); font-size: 0.85rem; }
 
-  .turn-banner { text-align: center; font-size: 0.95rem; padding: 10px; border-radius: 10px; background: var(--panel-2); border: 1px solid var(--line); }
+  .fighter.hit { animation: hitshake 0.35s ease; }
+  @keyframes hitshake {
+    0% { transform: translateX(0); }
+    25% { transform: translateX(-6px); }
+    50% { transform: translateX(5px); }
+    75% { transform: translateX(-3px); }
+    100% { transform: translateX(0); }
+  }
+  .fighter.miss { animation: missfade 0.4s ease; }
+  @keyframes missfade {
+    0% { opacity: 1; }
+    50% { opacity: 0.35; }
+    100% { opacity: 1; }
+  }
+
+  .turn-banner { text-align: center; font-size: 0.95rem; padding: 10px; border-radius: 10px; background: var(--panel-2); border: 1px solid var(--line); transition: border-color 0.15s ease, color 0.15s ease; }
   .turn-banner.mine { border-color: var(--p1); color: var(--p1); }
   .turn-banner.theirs { border-color: var(--p2); color: var(--p2); }
 
   .fire-btn { font-size: 1.15rem; padding: 18px; background: var(--danger); color: #2a0006; }
+  .fire-btn.flash { filter: brightness(1.3); }
 
   .log {
     font-family: var(--font-mono); font-size: 0.8rem; background: var(--panel-2);
@@ -102,6 +122,12 @@
   .end-title.win { color: var(--ok); }
   .end-title.lose { color: var(--danger); }
 
+  .net-note {
+    background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px;
+    padding: 14px 16px; font-size: 0.85rem; line-height: 1.45;
+  }
+  .net-note .kicker { font-family: var(--font-mono); color: var(--p2); font-size: 0.75rem; margin-bottom: 6px; display: block; }
+
   footer.note { text-align: center; color: var(--text-dim); font-size: 0.78rem; padding-top: 6px; }
 </style>
 </head>
@@ -110,7 +136,7 @@
 
   <header class="top">
     <h1>Duelo de Sinal</h1>
-    <p>Você contra a rede — modo solo</p>
+    <p>Você contra a rede — modo solo · v2</p>
   </header>
 
   <!-- HOME -->
@@ -120,8 +146,18 @@
         <label for="input-name">Seu nome de guerra</label>
         <input type="text" id="input-name" maxlength="14" placeholder="ex: FALCÃO">
       </div>
+
+      <div>
+        <label>Dificuldade</label>
+        <div class="diff-row" id="diff-row">
+          <button data-diff="facil" type="button">Fácil</button>
+          <button data-diff="medio" type="button" class="active">Médio</button>
+          <button data-diff="dificil" type="button">Difícil</button>
+        </div>
+      </div>
+
       <button class="btn-primary btn-block" id="btn-start">Iniciar duelo</button>
-      <p class="muted" style="text-align:center; color:var(--text-dim); font-size:0.85rem; margin:0;">
+      <p style="text-align:center; color:var(--text-dim); font-size:0.85rem; margin:0;">
         Você enfrenta um oponente automático (CPU). Cada tiro é tratado como um pacote — às vezes ele se perde no caminho.
       </p>
     </div>
@@ -130,15 +166,15 @@
   <!-- BATTLE -->
   <section id="screen-battle" class="card hidden">
     <div class="duel">
-      <div class="fighter me">
+      <div class="fighter me" id="fighter-me">
         <div class="tag">VOCÊ</div>
         <div class="name" id="battle-my-name">—</div>
         <div class="hp" id="battle-my-hp"></div>
       </div>
       <div class="vs">vs</div>
-      <div class="fighter opp">
+      <div class="fighter opp" id="fighter-opp">
         <div class="tag">CPU</div>
-        <div class="name">FIREWALL-9</div>
+        <div class="name" id="battle-opp-name">FIREWALL-9</div>
         <div class="hp" id="battle-opp-hp"></div>
       </div>
     </div>
@@ -158,7 +194,12 @@
   <section id="screen-end" class="card hidden">
     <div class="end-title" id="end-title">—</div>
     <p style="text-align:center; color:var(--text-dim);" id="end-sub"></p>
-    <div style="height:10px;"></div>
+    <div style="height:14px;"></div>
+    <div class="net-note">
+      <span class="kicker" id="net-kicker">CONCEITO DE REDE</span>
+      <span id="net-text"></span>
+    </div>
+    <div style="height:14px;"></div>
     <button class="btn-primary btn-block" id="btn-rematch">Jogar de novo</button>
   </section>
 
@@ -168,8 +209,19 @@
 <script>
 (function () {
   const MAX_HP = 3;
-  const HIT_CHANCE_PLAYER = 0.8;
-  const HIT_CHANCE_CPU = 0.7;
+  const DIFFICULTIES = {
+    facil:   { playerHit: 0.88, cpuHit: 0.55, cpuName: 'FIREWALL-3 (modo treino)' },
+    medio:   { playerHit: 0.8,  cpuHit: 0.7,  cpuName: 'FIREWALL-9' },
+    dificil: { playerHit: 0.7,  cpuHit: 0.85, cpuName: 'FIREWALL-X (endurecido)' },
+  };
+
+  const NET_NOTES = [
+    { kicker: 'PACKET LOSS', text: 'Quando um disparo "some", é isso que acontece de verdade na internet: pacotes se perdem por congestionamento, interferência ou erro de roteamento — e o protocolo (como o TCP) percebe e reenvia.' },
+    { kicker: 'RETRANSMISSÃO', text: 'Um pacote perdido não é o fim: quem enviou espera uma confirmação (ACK) e, se ela não chega a tempo, reenvia o pacote. É por isso que a internet costuma "se corrigir sozinha".' },
+    { kicker: 'LATÊNCIA', text: 'O tempo entre você clicar e o resultado aparecer é análogo à latência de rede: quanto mais distante e mais saltos (roteadores) no caminho, maior o atraso.' },
+    { kicker: 'TAXA DE ACERTO', text: 'A "chance de acerto" de cada dificuldade é parecida com a taxa de entrega de uma rede: redes congestionadas ou instáveis entregam menos pacotes com sucesso na primeira tentativa.' },
+    { kicker: 'FIREWALL', text: 'O nome do oponente não é por acaso: um firewall real decide, pacote por pacote, o que deixa passar — parecido com "bloquear" ou "deixar acertar" cada tiro dele.' },
+  ];
 
   const screens = {
     home: document.getElementById('screen-home'),
@@ -181,8 +233,16 @@
     screens[name].classList.remove('hidden');
   }
 
-  let state = null; // { myHp, oppHp, turn: 'me'|'cpu', log: [], seq: 0, finished: bool }
+  let difficulty = 'medio';
+  let state = null;
   let myName = 'VOCÊ';
+
+  document.getElementById('diff-row').addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-diff]');
+    if (!btn) return;
+    difficulty = btn.dataset.diff;
+    document.querySelectorAll('#diff-row button').forEach(b => b.classList.toggle('active', b === btn));
+  });
 
   function renderHp(el, hp) {
     el.innerHTML = '';
@@ -211,8 +271,16 @@
     });
   }
 
+  function flash(el, cls) {
+    el.classList.remove('hit', 'miss');
+    void el.offsetWidth;
+    el.classList.add(cls);
+    setTimeout(() => el.classList.remove(cls), 400);
+  }
+
   function render() {
     document.getElementById('battle-my-name').textContent = myName;
+    document.getElementById('battle-opp-name').textContent = DIFFICULTIES[difficulty].cpuName;
     renderHp(document.getElementById('battle-my-hp'), state.myHp);
     renderHp(document.getElementById('battle-opp-hp'), state.oppHp);
     renderLog();
@@ -221,17 +289,14 @@
     const fireBtn = document.getElementById('btn-fire');
     banner.classList.remove('mine', 'theirs');
 
-    if (state.finished) {
-      fireBtn.disabled = true;
-      return;
-    }
+    if (state.finished) { fireBtn.disabled = true; return; }
 
     if (state.turn === 'me') {
       banner.textContent = 'Sua vez — dispare!';
       banner.classList.add('mine');
       fireBtn.disabled = false;
     } else {
-      banner.textContent = 'FIREWALL-9 está respondendo…';
+      banner.textContent = DIFFICULTIES[difficulty].cpuName + ' está respondendo…';
       banner.classList.add('theirs');
       fireBtn.disabled = true;
     }
@@ -244,35 +309,45 @@
     document.getElementById('end-title').className = 'end-title ' + (iWon ? 'win' : 'lose');
     document.getElementById('end-sub').textContent = iWon
       ? 'Seus pacotes chegaram antes dos dele.'
-      : 'O FIREWALL-9 respondeu mais rápido dessa vez.';
+      : DIFFICULTIES[difficulty].cpuName + ' respondeu mais rápido dessa vez.';
+    const note = NET_NOTES[Math.floor(Math.random() * NET_NOTES.length)];
+    document.getElementById('net-kicker').textContent = note.kicker;
+    document.getElementById('net-text').textContent = note.text;
     setTimeout(() => show('end'), 500);
   }
 
   function playerFire() {
     if (!state || state.finished || state.turn !== 'me') return;
-    const hit = Math.random() < HIT_CHANCE_PLAYER;
+    const fireBtn = document.getElementById('btn-fire');
+    fireBtn.classList.add('flash');
+    setTimeout(() => fireBtn.classList.remove('flash'), 200);
+
+    const hit = Math.random() < DIFFICULTIES[difficulty].playerHit;
     if (hit) {
       state.oppHp = Math.max(0, state.oppHp - 1);
       addLog('me', 'disparo acertou (1 dano)');
+      flash(document.getElementById('fighter-opp'), 'hit');
     } else {
       addLog('me', 'pacote perdido — disparo não chegou');
+      flash(document.getElementById('fighter-me'), 'miss');
     }
     state.turn = 'cpu';
     render();
 
     if (state.oppHp <= 0) { endGame(true); return; }
-
     setTimeout(cpuFire, 850 + Math.random() * 500);
   }
 
   function cpuFire() {
     if (!state || state.finished) return;
-    const hit = Math.random() < HIT_CHANCE_CPU;
+    const hit = Math.random() < DIFFICULTIES[difficulty].cpuHit;
     if (hit) {
       state.myHp = Math.max(0, state.myHp - 1);
       addLog('cpu', 'disparo acertou (1 dano)');
+      flash(document.getElementById('fighter-me'), 'hit');
     } else {
       addLog('cpu', 'pacote perdido — disparo não chegou');
+      flash(document.getElementById('fighter-opp'), 'miss');
     }
     state.turn = 'me';
     render();
@@ -280,10 +355,14 @@
     if (state.myHp <= 0) { endGame(false); }
   }
 
+  function freshState() {
+    return { myHp: MAX_HP, oppHp: MAX_HP, turn: 'me', log: [], seq: 0, finished: false };
+  }
+
   function startGame() {
     const v = document.getElementById('input-name').value.trim();
     myName = v ? v.slice(0, 14) : 'VOCÊ';
-    state = { myHp: MAX_HP, oppHp: MAX_HP, turn: 'me', log: [], seq: 0, finished: false };
+    state = freshState();
     show('battle');
     render();
   }
@@ -291,7 +370,7 @@
   document.getElementById('btn-start').addEventListener('click', startGame);
   document.getElementById('btn-fire').addEventListener('click', playerFire);
   document.getElementById('btn-rematch').addEventListener('click', () => {
-    state = { myHp: MAX_HP, oppHp: MAX_HP, turn: 'me', log: [], seq: 0, finished: false };
+    state = freshState();
     show('battle');
     render();
   });
